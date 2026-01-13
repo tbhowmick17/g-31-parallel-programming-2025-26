@@ -1,12 +1,20 @@
-#!/bin/bash
-#SBATCH --job-name=heatmap_speedup
-#SBATCH --output=heatmap_speedup.out
-#SBATCH --error=heatmap_speedup.err
+#!/usr/bin/env bash
+####### Mail Notify / Job Name / Comment #######
+#SBATCH --job-name="heatmap_omp"
+
+####### Partition #######
+#SBATCH --partition=all
+
+####### Ressources #######
+#SBATCH --time=0-00:20:00
+
+####### Node Info #######
+#SBATCH --exclusive
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=64
-#SBATCH --time=00:20:00
-#SBATCH --partition=compute
+
+####### Output #######
+#SBATCH --output=/home/fd0005400/out/heatmap_speedup.out.%j
+#SBATCH --error=/home/fd0005400/out/heatmap_speedup.err.%j
 
 # ------------------------------------------------------------
 # Load compiler
@@ -14,12 +22,12 @@
 module load gcc
 
 # ------------------------------------------------------------
-# Build program
+# Compile
 # ------------------------------------------------------------
 gcc -O3 -fopenmp heatmap_analysis.c -o heatmap_analysis
 
 # ------------------------------------------------------------
-# Problem parameters (FIXED for speedup measurement)
+# Fixed parameters (for speedup measurement)
 # ------------------------------------------------------------
 COLUMNS=1024
 ROWS=786
@@ -36,15 +44,16 @@ WORK_FACTOR=10
 THREADS_LIST="1 2 4 8 16 32 64"
 ITERATIONS=5
 
+export OMP_PROC_BIND=close
+export OMP_PLACES=cores
+
 echo "threads,iteration,time_seconds"
 
 # ------------------------------------------------------------
-# Run measurements
+# Run experiments
 # ------------------------------------------------------------
 for T in $THREADS_LIST; do
     export OMP_NUM_THREADS=$T
-    export OMP_PROC_BIND=close
-    export OMP_PLACES=cores
 
     for ((i=1; i<=ITERATIONS; i++)); do
         ./heatmap_analysis \
