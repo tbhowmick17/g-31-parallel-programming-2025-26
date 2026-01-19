@@ -1,3 +1,5 @@
+# Author: Trisha Bhowmick
+
 #!/usr/bin/env bash
 ####### Mail Notify / Job Name / Comment #######
 #SBATCH --job-name="heatmap_quick"
