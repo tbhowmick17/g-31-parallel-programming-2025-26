@@ -13,9 +13,3 @@ This project contains two OpenMP programs for analyzing a 2D heatmap.
 ## Compilation
 
 Compilation can be done either locally or on the Fulda HPC cluster.
-
-### Using the Makefile (recommended)
-
-```bash
-module load gcc
-make
