@@ -10,6 +10,13 @@ This project contains two OpenMP programs for analyzing a 2D heatmap.
 
 ---
 
+# Pi tasks (OpenMP)
+
+This project contains an OpenMP program for estimating the value of Pi using parallel tasks.
+
+- `pi_tasks.c`  
+  Pi estimation using OpenMP tasks (Task 1.3)
+
 ## Compilation
 
 Compilation can be done either locally or on the Fulda HPC cluster.
