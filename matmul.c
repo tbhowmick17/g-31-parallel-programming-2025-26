@@ -167,23 +167,22 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Parse command-line arguments (done by all, only rank 0 prints usage)
+    // Parse arguments (only rank 0 will do this, but all ranks need the values)
     if (argc != 4)
     {
         if (rank == 0)
-        {
-            fprintf(stderr, "Usage: %s n seed verbose\n", argv[0]);
-            fprintf(stderr, "  n:       matrix size (n×n)\n");
-            fprintf(stderr, "  seed:    random seed\n");
-            fprintf(stderr, "  verbose: 1 to print matrices (if n<=10), 0 for checksum only\n");
-        }
-        MPI_Finalize();
-        return 1;
-    }
+            printf("No arguments provided. Using defaults.\n");
 
-    n = atoi(argv[1]);
-    seed = atoi(argv[2]);
-    verbose = atoi(argv[3]);
+        n = 8000;
+        seed = 42;
+        verbose = 0;
+    }
+    else
+    {
+        n = atoi(argv[1]);
+        seed = atoi(argv[2]);
+        verbose = atoi(argv[3]);
+    }
 
     int rows_per_process = n / size;
     int remainder = n % size;
