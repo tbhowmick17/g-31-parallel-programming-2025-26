@@ -3,15 +3,6 @@
 #include <string.h>
 #include <mpi.h>
 
-// ============================================================================
-// OPTIMIZED MPI MATRIX MULTIPLICATION
-// Key improvements over original code:
-// 1. NO master bottleneck - uses collective operations (Scatter/Gather)
-// 2. Cache-optimized - transposes B matrix for row-major access
-// 3. Static distribution - no dynamic scheduling overhead
-// 4. Efficient communication - single broadcast + scatter + gather
-// ============================================================================
-
 // Random number generator (same as assignment)
 double my_rand(unsigned long *state, double lower, double upper)
 {
@@ -96,30 +87,11 @@ double compute_checksum(double **matrix, int n)
     return checksum;
 }
 
-// Matrix multiplication: C = A × B_transpose
-// CRITICAL: B is transposed for CACHE EFFICIENCY!
-// Original code accesses B column-wise (slow), we access row-wise (fast)
-// void multiply_matrices(double **A, double **B_transpose, double **C, int rows, int n)
-// {
-//     for (int i = 0; i < rows; i++)
-//     {
-//         for (int j = 0; j < n; j++)
-//         {
-//             double sum = 0.0;
-//             // Both A[i] and B_transpose[j] accessed sequentially: CACHE FRIENDLY!
-//             for (int k = 0; k < n; k++)
-//             {
-//                 sum += A[i][k] * B_transpose[j][k];
-//             }
-//             C[i][j] = sum;
-//         }
-//     }
-// }
-
+// Blocked matrix multiplication: C = A * B_transpose
 void multiply_matrices(double **A, double **B_transpose, double **C,
                        int rows, int n)
 {
-#define BLOCK_SIZE 96 // Tune for your CPU's cache
+#define BLOCK_SIZE 96
 
     // Initialize C to zero
     for (int i = 0; i < rows; i++)
@@ -142,7 +114,7 @@ void multiply_matrices(double **A, double **B_transpose, double **C,
                 {
                     for (int j = jj; j < j_max; j++)
                     {
-                        double sum = C[i][j]; // Accumulate
+                        double sum = C[i][j];
                         for (int k = kk; k < k_max; k++)
                         {
                             sum += A[i][k] * B_transpose[j][k];
@@ -167,7 +139,6 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Parse arguments (only rank 0 will do this, but all ranks need the values)
     if (argc != 4)
     {
         if (rank == 0)
@@ -193,7 +164,8 @@ int main(int argc, char *argv[])
     double **my_C = my_rows > 0 ? allocate_matrix(my_rows, n) : NULL;
     double **B_transpose = allocate_matrix(n, n); // all ranks need B_transpose
 
-    // Rank 0 only: allocate full matrices, fill them, compute sendcounts/displs
+    // Rank 0 only
+    // allocate full matrices, fill them, compute sendcounts/displs
     double **A_full = NULL, **B_full = NULL, **C_full = NULL;
     int *sendcounts = NULL, *displs = NULL;
 
@@ -211,7 +183,6 @@ int main(int argc, char *argv[])
             for (int j = 0; j < n; j++)
                 B_transpose[i][j] = B_full[j][i];
 
-        // Print if verbose
         if (verbose && n <= 10)
         {
             print_matrix("A", A_full, n);
@@ -233,26 +204,25 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Step 1: Broadcast B_transpose to all ranks
-    // for (int i = 0; i < n; i++)
-    // MPI_Bcast(B_transpose[i], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // Broadcast B_transpose to all ranks
     MPI_Bcast(B_transpose[0], n * n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    // Step 2: Scatter rows of A
+    // Scatter rows of A
     MPI_Scatterv(rank == 0 ? A_full[0] : NULL, sendcounts, displs, MPI_DOUBLE,
                  my_rows > 0 ? my_A[0] : NULL, my_rows * n, MPI_DOUBLE,
                  0, MPI_COMM_WORLD);
 
-    // Step 3: Local multiplication
+    // Local multiplication
     if (my_rows > 0)
         multiply_matrices(my_A, B_transpose, my_C, my_rows, n);
 
-    // Step 4: Gather results
+    // Gather results
     MPI_Gatherv(my_rows > 0 ? my_C[0] : NULL, my_rows * n, MPI_DOUBLE,
                 rank == 0 ? C_full[0] : NULL, sendcounts, displs, MPI_DOUBLE,
                 0, MPI_COMM_WORLD);
 
-    // Rank 0 only: free scatter/gather arrays, print results, free full matrices
+    // Rank 0 only
+    // free scatter/gather arrays, print results, free full matrices
     if (rank == 0)
     {
         free(sendcounts);
